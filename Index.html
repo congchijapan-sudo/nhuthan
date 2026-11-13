@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gửi Ngọc Hân ❤️ Do You Love Me?</title>
+    <!-- Tải Google Fonts hỗ trợ tiếng Việt đẹp mắt kèm fallback an toàn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Reset & thiết lập cơ bản */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #fff0f3 0%, #ffe0e9 48%, #ffccd5 100%);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Canvas nền cho trái tim bay và pháo hoa */
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Thông báo trêu đùa khi cố bấm nút No */
+        #tease-toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            z-index: 60;
+            background: rgba(255, 255, 255, 0.92);
+            color: #d90429;
+            padding: 10px 22px;
+            border-radius: 999px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(217, 4, 41, 0.18);
+            border: 1.5px solid #ffb3c1;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            white-space: nowrap;
+        }
+
+        #tease-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Khung bao trung tâm toàn màn hình */
+        .stage {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        /* Khung chứa trái tim SVG cân đối mọi kích thước màn hình */
+        .heart-container {
+            position: relative;
+            width: min(92vw, 520px);
+            aspect-ratio: 600 / 540;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            animation: heartPulse 2.2s infinite ease-in-out;
+            transition: transform 0.4s ease;
+        }
+
+        .heart-container.active-mode {
+            cursor: default;
+        }
+
+        .heart-container.accepted-mode {
+            cursor: default;
+            animation: heartGlowPulse 2s infinite ease-in-out;
+        }
+
+        /* Đồ họa SVG Trái tim mượt mà */
+        .heart-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            filter: drop-shadow(0 20px 35px rgba(201, 24, 74, 0.35));
+            transition: filter 0.5s ease;
+        }
+
+        .heart-container.accepted-mode .heart-svg {
+            filter: drop-shadow(0 0 32px rgba(255, 77, 109, 0.85)) drop-shadow(0 0 65px rgba(255, 214, 10, 0.45));
+        }
+
+        /* Vùng nội dung nằm gọn bên trong phần ngực rộng nhất của trái tim */
+        .heart-content {
+            position: absolute;
+            top: 44%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 68%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        /* Ẩn/hiện từng trạng thái */
+        .view-state {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .view-state.active {
+            display: flex;
+        }
+
+        /* Trạng thái 1: Màn hình chờ */
+        .initial-icon {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            margin-bottom: 8px;
+            animation: gentleBounce 1.8s infinite ease-in-out;
+        }
+
+        .initial-title {
+            font-size: clamp(1.25rem, 4.5vw, 1.85rem);
+            font-weight: 700;
+            line-height: 1.3;
+            text-shadow: 0 2px 10px rgba(128, 15, 47, 0.45);
+        }
+
+        .initial-sub {
+            margin-top: 6px;
+            font-size: clamp(0.8rem, 2.8vw, 0.98rem);
+            color: #ffe5ec;
+            font-weight: 600;
+        }
+
+        /* Trạng thái 2: Câu hỏi Do you love me? */
+        .question-title {
+            font-family: 'Dancing Script', 'Quicksand', cursive, sans-serif;
+            font-size: clamp(1.9rem, 6.8vw, 3.1rem);
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: clamp(14px, 3.5vw, 24px);
+            text-shadow: 0 3px 12px rgba(128, 15, 47, 0.5);
+        }
+
+        .btn-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(12px, 3vw, 20px);
+            width: 100%;
+        }
+
+        .btn {
+            border: none;
+            outline: none;
+            border-radius: 999px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: clamp(0.95rem, 3.2vw, 1.15rem);
+            padding: clamp(9px, 2.2vw, 12px) clamp(22px, 5vw, 32px);
+            cursor: pointer;
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, background-color 0.2s ease;
+        }
+
+        .btn-yes {
+            background: #ffffff;
+            color: #d90429;
+            box-shadow: 0 8px 20px rgba(128, 15, 47, 0.32);
+        }
+
+        .btn-yes:hover {
+            background: #fff0f3;
+            box-shadow: 0 10px 25px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-no {
+            background: rgba(255, 255, 255, 0.24);
+            color: #ffffff;
+            border: 1.5px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(128, 15, 47, 0.2);
+            transition: left 0.26s cubic-bezier(0.22, 1, 0.36, 1), top 0.26s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s ease;
+        }
+
+        /* Placeholder giữ chỗ để nút Yes không bị giật vị trí khi nút No bay ra ngoài */
+        .no-placeholder {
+            display: none;
+        }
+
+        /* Trạng thái 3: Lời yêu thương */
+        .loved-badge {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            margin-bottom: 4px;
+        }
+
+        .loved-title {
+            font-family: 'Dancing Script', 'Quicksand', cursive, sans-serif;
+            font-size: clamp(2.1rem, 7.5vw, 3.5rem);
+            font-weight: 700;
+            line-height: 1.15;
+            color: #ffffff;
+            text-shadow: 0 4px 14px rgba(128, 15, 47, 0.55);
+        }
+
+        .loved-divider {
+            width: 55%;
+            height: 1.5px;
+            background: linear-gradient(90deg, transparent, rgba(255, 243, 176, 0.85), transparent);
+            margin: clamp(8px, 2vw, 12px) 0;
+        }
+
+        .loved-subtitle {
+            font-size: clamp(1rem, 3.8vw, 1.45rem);
+            font-weight: 700;
+            color: #fff3b0;
+            letter-spacing: 0.4px;
+            text-shadow: 0 2px 10px rgba(128, 15, 47, 0.6);
+        }
+
+        /* Gợi ý nhỏ phía dưới trái tim ở màn hình đầu */
+        .bottom-hint {
+            margin-top: 14px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #c9184a;
+            opacity: 0.85;
+            animation: pulseOpacity 2s infinite ease-in-out;
+        }
+
+        .bottom-hint.hidden {
+            visibility: hidden;
+        }
+
+        /* Keyframes Animations */
+        @keyframes heartPulse {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.045); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.065); }
+            60% { transform: scale(1); }
+        }
+
+        @keyframes heartGlowPulse {
+            0%, 100% { transform: scale(1.02); }
+            50% { transform: scale(1.07); }
+        }
+
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes gentleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        @keyframes pulseOpacity {
+            0%, 100% { opacity: 0.55; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas nền hiển thị trái tim bay nhẹ và pháo hoa chúc mừng -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Thông báo trêu đùa khi chạm/di chuột vào nút No -->
+    <div id="tease-toast" role="status" aria-live="polite">Ơ kìa, không bấm được đâu nha 😜</div>
+
+    <!-- Khu vực chính -->
+    <main class="stage">
+        <div id="heart-container" class="heart-container">
+            
+            <!-- SVG Trái tim đối xứng chuẩn tỷ lệ 600x540 -->
+            <svg class="heart-svg" viewBox="0 0 600 540" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="velvetHeartGrad" x1="15%" y1="10%" x2="85%" y2="92%">
+                        <stop offset="0%" stop-color="#ff5c8a" />
+                        <stop offset="45%" stop-color="#e6194b" />
+                        <stop offset="100%" stop-color="#a4133c" />
+                    </linearGradient>
+                    <radialGradient id="softGlossGrad" cx="32%" cy="24%" r="48%">
+                        <stop offset="0%" stop-color="rgba(255, 255, 255, 0.36)" />
+                        <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+                    </radialGradient>
+                </defs>
+                <!-- Đường viền & thân trái tim mượt mà -->
+                <path d="M300 515 C300 515 32 355 32 178 C32 82 106 22 194 22 C248 22 284 52 300 84 C316 52 352 22 406 22 C494 22 568 82 568 178 C568 355 300 515 300 515 Z"
+                      fill="url(#velvetHeartGrad)"
+                      stroke="#ffe5ec"
+                      stroke-width="6" />
+                <!-- Lớp ánh bóng 3D mềm mại -->
+                <path d="M300 515 C300 515 32 355 32 178 C32 82 106 22 194 22 C248 22 284 52 300 84 C316 52 352 22 406 22 C494 22 568 82 568 178 C568 355 300 515 300 515 Z"
+                      fill="url(#softGlossGrad)" />
+            </svg>
+
+            <!-- Nội dung nằm chính giữa trái tim -->
+            <div class="heart-content">
+                
+                <!-- TRẠNG THÁI 1: Chạm vào trái tim -->
+                <div id="state-initial" class="view-state active">
+                    <div class="initial-icon">💌</div>
+                    <h1 class="initial-title">Chạm vào trái tim ❤️</h1>
+                    <p class="initial-sub">Dành riêng cho Ngọc Hân...</p>
+                </div>
+
+                <!-- TRẠNG THÁI 2: Câu hỏi Do you love me? -->
+                <div id="state-question" class="view-state">
+                    <h2 class="question-title">Do you love me?</h2>
+                    <div class="btn-group">
+                        <button id="yes-btn" type="button" class="btn btn-yes">Yes ❤️</button>
+                        <div id="no-placeholder" class="no-placeholder"></div>
+                        <button id="no-btn" type="button" class="btn btn-no">No</button>
+                    </div>
+                </div>
+
+                <!-- TRẠNG THÁI 3: I love you + Mãi yêu em Ngọc Hân -->
+                <div id="state-loved" class="view-state">
+                    <div class="loved-badge">💖✨💖</div>
+                    <h2 class="loved-title">I love you ❤️</h2>
+                    <div class="loved-divider"></div>
+                    <p class="loved-subtitle">Mãi yêu em Ngọc Hân</p>
+                </div>
+
+            </div>
+        </div>
+
+        <p id="bottom-hint" class="bottom-hint">Chạm nhẹ để mở khóa trái tim ✨</p>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ==========================================
+            // 1. THAM CHIẾU DOM AN TOÀN
+            // ==========================================
+            const heartContainer = document.getElementById('heart-container');
+            const stateInitial = document.getElementById('state-initial');
+            const stateQuestion = document.getElementById('state-question');
+            const stateLoved = document.getElementById('state-loved');
+            const bottomHint = document.getElementById('bottom-hint');
+
+            const yesBtn = document.getElementById('yes-btn');
+            const noBtn = document.getElementById('no-btn');
+            const noPlaceholder = document.getElementById('no-placeholder');
+            const teaseToast = document.getElementById('tease-toast');
+
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // ==========================================
+            // 2. QUẢN LÝ TRẠNG THÁI ỨNG DỤNG
+            // ==========================================
+            let appState = 'initial'; // 'initial' | 'question' | 'loved'
+            let dodgeCount = 0;
+            let toastTimer = null;
+
+            const teaseMessages = [
+                "Ơ kìa, không bấm được đâu nha 😜",
+                "Nút này hỏng rồi, bấm Yes đi mà 💕",
+                "Ngọc Hân ơi, đừng bấm No mà 🥺",
+                "Chạy đâu cho thoát, chọn Yes thôi 🥰",
+                "Trái tim chỉ nhận nút Yes thôi ❤️"
+            ];
+
+            // ==========================================
+            // 3. HỆ THỐNG CANVAS TRÁI TIM NỀN & PHÁO HOA
+            // ==========================================
+            let ambientHearts = [];
+            let burstParticles = [];
+            let celebrationMode = false;
+
+            const palette = ['#ff4d6d', '#ff758f', '#c9184a', '#ff8fa3', '#ffb3c1', '#ffffff'];
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Vẽ hình trái tim bằng đường cong Bezier mượt trên Canvas
+            function drawHeartShape(x, y, size, color, alpha, rotation) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+                ctx.fillStyle = color;
+
+                const topCurve = size * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(0, topCurve);
+                ctx.bezierCurveTo(0, 0, -size / 2, 0, -size / 2, topCurve);
+                ctx.bezierCurveTo(-size / 2, (size + topCurve) / 2, 0, (size + topCurve) / 1.4, 0, size);
+                ctx.bezierCurveTo(0, (size + topCurve) / 1.4, size / 2, (size + topCurve) / 2, size / 2, topCurve);
+                ctx.bezierCurveTo(size / 2, 0, 0, 0, 0, topCurve);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Khởi tạo trái tim nền bay lơ lửng nhẹ nhàng
+            function createAmbientHeart(randomY = false) {
+                return {
+                    x: Math.random() * canvas.width,
+                    y: randomY ? Math.random() * canvas.height : canvas.height + 30,
+                    size: Math.random() * 14 + 10,
+                    vy: -(Math.random() * 0.8 + 0.4),
+                    vx: (Math.random() - 0.5) * 0.4,
+                    alpha: Math.random() * 0.35 + 0.15,
+                    color: palette[Math.floor(Math.random() * 4)],
+                    rotation: (Math.random() - 0.5) * 0.5,
+                    spin: (Math.random() - 0.5) * 0.01
+                };
+            }
+
+            for (let i = 0; i < 18; i++) {
+                ambientHearts.push(createAmbientHeart(true));
+            }
+
+            // Tạo hiệu ứng pháo hoa trái tim bung nổ khi nhấn Yes
+            function spawnFireworkBurst(originX, originY, count) {
+                for (let i = 0; i < count; i++) {
+                    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.25;
+                    const speed = Math.random() * 6.5 + 2.5;
+                    burstParticles.push({
+                        type: 'burst',
+                        x: originX,
+                        y: originY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 1.5,
+                        size: Math.random() * 14 + 9,
+                        color: palette[Math.floor(Math.random() * palette.length)],
+                        alpha: 1,
+                        decay: Math.random() * 0.012 + 0.008,
+                        rotation: (Math.random() - 0.5) * 0.8,
+                        spin: (Math.random() - 0.5) * 0.05
+                    });
+                }
+            }
+
+            // Tạo mưa trái tim rơi sau khi nhấn Yes
+            function spawnRainHeart() {
+                burstParticles.push({
+                    type: 'rain',
+                    x: Math.random() * canvas.width,
+                    y: -25,
+                    vx: (Math.random() - 0.5) * 1.4,
+                    vy: Math.random() * 2.4 + 1.6,
+                    size: Math.random() * 15 + 10,
+                    color: palette[Math.floor(Math.random() * palette.length)],
+                    alpha: Math.random() * 0.35 + 0.65,
+                    decay: 0,
+                    rotation: (Math.random() - 0.5) * 0.6,
+                    spin: (Math.random() - 0.5) * 0.03
+                });
+            }
+
+            function renderLoop() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Cập nhật và vẽ trái tim bay nền
+                for (let i = 0; i < ambientHearts.length; i++) {
+                    const h = ambientHearts[i];
+                    h.x += h.vx;
+                    h.y += h.vy;
+                    h.rotation += h.spin;
+
+                    if (h.y < -35) {
+                        ambientHearts[i] = createAmbientHeart(false);
+                    }
+                    drawHeartShape(h.x, h.y, h.size, h.color, h.alpha, h.rotation);
+                }
+
+                // Cập nhật và vẽ pháo hoa / mưa trái tim chúc mừng
+                if (celebrationMode) {
+                    if (Math.random() < 0.4) {
+                        spawnRainHeart();
+                    }
+
+                    for (let i = burstParticles.length - 1; i >= 0; i--) {
+                        const p = burstParticles[i];
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.rotation += p.spin;
+
+                        if (p.type === 'burst') {
+                            p.vy += 0.11;
+                            p.vx *= 0.985;
+                            p.alpha -= p.decay;
+                        }
+
+                        if (p.alpha <= 0 || p.y > canvas.height + 40) {
+                            burstParticles.splice(i, 1);
+                        } else {
+                            drawHeartShape(p.x, p.y, p.size, p.color, p.alpha, p.rotation);
+                        }
+                    }
+                }
+
+                requestAnimationFrame(renderLoop);
+            }
+            renderLoop();
+
+            // ==========================================
+            // 4. XỬ LÝ CHUYỂN TRẠNG THÁI 1 -> 2
+            // ==========================================
+            heartContainer.addEventListener('click', () => {
+                if (appState !== 'initial') return;
+
+                appState = 'question';
+                heartContainer.classList.add('active-mode');
+                bottomHint.classList.add('hidden');
+
+                stateInitial.classList.remove('active');
+                stateQuestion.classList.add('active');
+            });
+
+            // ==========================================
+            // 5. XỬ LÝ NÚT "NO" NHẢY TRÁNH KHỎI TRÁI TIM
+            // ==========================================
+            function showTeaseToast() {
+                teaseToast.textContent = teaseMessages[dodgeCount % teaseMessages.length];
+                teaseToast.classList.add('show');
+
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => {
+                    teaseToast.classList.remove('show');
+                }, 1700);
+            }
+
+            function dodgeNoButton(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (appState !== 'question') return;
+
+                // Tách nút No sang position: fixed trên body ở lần né đầu tiên
+                if (noBtn.parentElement !== document.body) {
+                    const initialRect = noBtn.getBoundingClientRect();
+                    noPlaceholder.style.display = 'block';
+                    noPlaceholder.style.width = `${initialRect.width}px`;
+                    noPlaceholder.style.height = `${initialRect.height}px`;
+
+                    document.body.appendChild(noBtn);
+                    noBtn.style.position = 'fixed';
+                    noBtn.style.left = `${initialRect.left}px`;
+                    noBtn.style.top = `${initialRect.top}px`;
+                    noBtn.style.zIndex = '50';
+                }
+
+                const edgePadding = 24;
+                const btnW = noBtn.offsetWidth || 86;
+                const btnH = noBtn.offsetHeight || 42;
+
+                const minX = edgePadding;
+                const maxX = Math.max(edgePadding, window.innerWidth - btnW - edgePadding);
+                const minY = edgePadding;
+                const maxY = Math.max(edgePadding, window.innerHeight - btnH - edgePadding);
+
+                // Vùng trung tâm trái tim cần tránh đè lên
+                const heartRect = heartContainer.getBoundingClientRect();
+                const safeZone = {
+                    left: heartRect.left + heartRect.width * 0.14,
+                    right: heartRect.right - heartRect.width * 0.14,
+                    top: heartRect.top + heartRect.height * 0.14,
+                    bottom: heartRect.bottom - heartRect.height * 0.16
+                };
+
+                const currentX = parseFloat(noBtn.style.left) || 0;
+                const currentY = parseFloat(noBtn.style.top) || 0;
+
+                let targetX = minX;
+                let targetY = minY;
+                let foundSafeSpot = false;
+
+                // Tìm tọa độ an toàn không đè lên chữ và cách xa vị trí cũ
+                for (let attempt = 0; attempt < 40; attempt++) {
+                    const candidateX = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+                    const candidateY = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+
+                    const overlapsHeartCenter = !(
+                        candidateX + btnW < safeZone.left ||
+                        candidateX > safeZone.right ||
+                        candidateY + btnH < safeZone.top ||
+                        candidateY > safeZone.bottom
+                    );
+
+                    const movedFarEnough = Math.hypot(candidateX - currentX, candidateY - currentY) >= 85;
+
+                    if (!overlapsHeartCenter && movedFarEnough) {
+                        targetX = candidateX;
+                        targetY = candidateY;
+                        foundSafeSpot = true;
+                        break;
+                    }
+                }
+
+                // Fallback trên màn hình nhỏ nếu trung tâm chiếm diện tích lớn: nhảy ra 4 góc an toàn
+                if (!foundSafeSpot) {
+                    const corners = [
+                        { x: minX, y: minY },
+                        { x: maxX, y: minY },
+                        { x: minX, y: maxY },
+                        { x: maxX, y: maxY }
+                    ];
+                    corners.sort((a, b) => Math.hypot(b.x - currentX, b.y - currentY) - Math.hypot(a.x - currentX, a.y - currentY));
+                    targetX = corners[0].x;
+                    targetY = corners[0].y;
+                }
+
+                dodgeCount++;
+
+                // Nút Yes lớn dần nhẹ nhàng sau mỗi lần No chạy trốn
+                const yesScale = Math.min(1.38, 1 + dodgeCount * 0.05);
+                yesBtn.style.transform = `scale(${yesScale})`;
+
+                // Nút No thu nhỏ nhẹ và xoay nghiêng đáng yêu
+                const noScale = Math.max(0.82, 1 - dodgeCount * 0.02);
+                const tilt = (Math.random() - 0.5) * 16;
+
+                noBtn.style.left = `${targetX}px`;
+                noBtn.style.top = `${targetY}px`;
+                noBtn.style.transform = `scale(${noScale}) rotate(${tilt}deg)`;
+
+                showTeaseToast();
+            }
+
+            noBtn.addEventListener('mouseenter', dodgeNoButton);
+            noBtn.addEventListener('touchstart', dodgeNoButton, { passive: false });
+            noBtn.addEventListener('click', dodgeNoButton);
+
+            // ==========================================
+            // 6. XỬ LÝ KHI NHẤN NÚT "YES" (TRẠNG THÁI 3)
+            // ==========================================
+            yesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (appState === 'loved') return;
+
+                appState = 'loved';
+
+                // Ẩn ngay nút No và thông báo trêu đùa
+                noBtn.remove();
+                teaseToast.classList.remove('show');
+
+                // Chuyển giao diện sang lời tỏ tình ngọt ngào
+                stateQuestion.classList.remove('active');
+                stateLoved.classList.add('active');
+
+                heartContainer.classList.remove('active-mode');
+                heartContainer.classList.add('accepted-mode');
+
+                // Đổi màu nền ấm áp lãng mạn hơn
+                document.body.style.background = 'linear-gradient(135deg, #ffe5ec 0%, #ffc2d1 50%, #ffb3c6 100%)';
+
+                // Bắn pháo hoa trái tim rực rỡ khắp màn hình
+                celebrationMode = true;
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+
+                spawnFireworkBurst(cx, cy, 55);
+                setTimeout(() => spawnFireworkBurst(cx * 0.45, cy * 0.65, 38), 320);
+                setTimeout(() => spawnFireworkBurst(cx * 1.55, cy * 0.65, 38), 620);
+                setTimeout(() => spawnFireworkBurst(cx, cy * 0.45, 48), 950);
+            });
+        });
+    </script>
+</body>
+</html>
